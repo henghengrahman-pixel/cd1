@@ -323,15 +323,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-
-Starting Container
-[ INFO/2026-04-21 20:58:13,957] telethon.network.mtprotosender: Connecting to 91.108.56.162:443/TcpFull...
- * Serving Flask app 'main'
- * Debug mode: off
-[ INFO/2026-04-21 20:58:13,978] werkzeug: WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:8080
- * Running on http://10.182.133.35:8080
-[ INFO/2026-04-21 20:58:13,978] werkzeug: Press CTRL+C to quit
-[ INFO/2026-04-21 20:58:14,185] telethon.network.mtprotosender: Connection to 91.108.56.162:443/TcpFull complete!
-[ INFO/2026-04-21 20:58:15,679] root: Bot Connected
