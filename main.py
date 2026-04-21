@@ -83,27 +83,37 @@ threading.Thread(target=run_flask, daemon=True).start()
 
 # ================= UTIL =================
 def build_buttons():
-    rows = []
-    for b in bot_data['buttons']:
-        rows.append([Button.url(b['text'], b['url'])])
-    return rows if rows else None
+    return [[Button.url(b['text'], b['url'])] for b in bot_data['buttons']] or None
 
 def bold(text):
-    if not text:
-        return ""
-    return f"<b>{text}</b>"
+    return f"<b>{text}</b>" if text else ""
 
+def clean_group(g):
+    g = g.strip().lower()
+    g = g.replace("https://t.me/", "").replace("http://t.me/", "")
+    if "/" in g:
+        g = g.split("/")[0]
+    if not g.startswith("@"):
+        g = "@" + g
+    return g
+
+def parse_link(link):
+    link = link.replace("https://t.me/", "").replace("http://t.me/", "")
+    if "/" not in link:
+        raise Exception("Format link salah")
+    chat, msg_id = link.split("/")
+    return chat, int(msg_id)
+
+# ================= SEND =================
 async def send_forward(group):
     try:
-        link = bot_data['forward_link']
-        parts = link.split('/')
-        chat = parts[-2]
-        msg_id = int(parts[-1])
-
+        chat, msg_id = parse_link(bot_data['forward_link'])
         msg = await client.get_messages(chat, ids=msg_id)
-        if msg:
-            await client.forward_messages(group, msg)
 
+        if not msg:
+            raise Exception("Pesan tidak ditemukan")
+
+        await client.forward_messages(group, msg)
         await client.send_message("me", f"✅ {group}")
 
     except Exception as e:
@@ -116,9 +126,7 @@ async def send_custom(group):
         if bot_data['media_message_id']:
             msg = await client.get_messages("me", ids=bot_data['media_message_id'])
             if msg:
-                caption = bot_data['caption'] or msg.message or ""
-                caption = bold(caption)
-
+                caption = bold(bot_data['caption'] or msg.message or "")
                 await client.send_file(
                     group,
                     msg.media,
@@ -128,11 +136,9 @@ async def send_custom(group):
                 )
 
         elif bot_data['caption']:
-            caption = bold(bot_data['caption'])
-
             await client.send_message(
                 group,
-                caption,
+                bold(bot_data['caption']),
                 buttons=buttons,
                 parse_mode='html'
             )
@@ -142,16 +148,14 @@ async def send_custom(group):
     except Exception as e:
         await client.send_message("me", f"❌ {group}\n{e}")
 
-# ================= BROADCAST =================
+# ================= LOOP =================
 async def broadcast_loop():
     global broadcast_task
 
     async with lock:
         while bot_data['is_active']:
 
-            groups = list(set(bot_data['groups']))
-
-            for g in groups:
+            for g in list(set(bot_data['groups'])):
                 if not bot_data['is_active']:
                     break
 
@@ -201,11 +205,11 @@ async def status(event):
 @client.on(events.NewMessage(outgoing=True, pattern=r'^/addgroup'))
 async def addgroup(event):
     lines = event.raw_text.split('\n')[1:]
-
     added = []
+
     for g in lines:
-        g = g.strip().lower()
-        if g.startswith("@") and g not in bot_data['groups']:
+        g = clean_group(g)
+        if g not in bot_data['groups']:
             bot_data['groups'].append(g)
             added.append(g)
 
@@ -222,7 +226,7 @@ async def delgroup(event):
     if len(parts) < 2:
         return await event.respond("Format salah")
 
-    g = parts[1].lower()
+    g = clean_group(parts[1])
 
     if g in bot_data['groups']:
         bot_data['groups'].remove(g)
@@ -237,7 +241,7 @@ async def listgroup(event):
 @client.on(events.NewMessage(outgoing=True, pattern=r'^/setcaption$'))
 async def setcaption(event):
     if not event.is_reply:
-        return await event.respond("Reply pesan untuk ambil caption")
+        return await event.respond("Reply pesan")
 
     msg = await event.get_reply_message()
 
@@ -275,7 +279,6 @@ async def setbutton(event):
 
     bot_data['buttons'] = buttons
     save_data(bot_data)
-
     await event.respond("Button OK")
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'^/forward'))
