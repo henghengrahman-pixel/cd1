@@ -33,6 +33,7 @@ def load_data():
         "groups": [],
         "is_active": False,
         "media_message_id": None,
+        "media_chat_id": None,  # 🔥 FIX
         "buttons": [],
         "forward_link": None
     }
@@ -124,16 +125,27 @@ async def send_custom(group):
         buttons = build_buttons()
 
         if bot_data['media_message_id']:
-            msg = await client.get_messages("me", ids=bot_data['media_message_id'])
+            msg = await client.get_messages(
+                bot_data.get('media_chat_id', "me"),
+                ids=bot_data['media_message_id']
+            )
+
             if msg:
-                caption = bold(bot_data['caption'] or msg.message or "")
-                await client.send_file(
-                    group,
-                    msg.media,
-                    caption=caption,
-                    buttons=buttons,
-                    parse_mode='html'
-                )
+
+                # 🔥 STIKER
+                if msg.sticker:
+                    await client.send_message(group, file=msg.media)
+
+                else:
+                    text = msg.message or bot_data['caption'] or ""
+
+                    await client.send_file(
+                        group,
+                        msg.media,
+                        caption=text,
+                        buttons=buttons,
+                        formatting_entities=msg.entities  # 🔥 EMOJI PREMIUM FIX
+                    )
 
         elif bot_data['caption']:
             await client.send_message(
@@ -259,6 +271,7 @@ async def setmedia(event):
     msg = await event.get_reply_message()
 
     bot_data['media_message_id'] = msg.id
+    bot_data['media_chat_id'] = msg.chat_id  # 🔥 FIX
     bot_data['caption'] = msg.message or ""
     bot_data['forward_link'] = None
 
